@@ -87,15 +87,22 @@ AFRAME.registerComponent('curve', {
 		if (this.data.type === 'CatmullRom') {
 			pointObjects.forEach((object, i) => {
 				const t = i/(pointObjects.length - 1);
-				const tangent = this.curve.getTangentAt(t, __tempTangent);
-				tangent.normalize();
-				tangent.add(object.position);
-				const up = __tempVector1.set(0,1,0).applyQuaternion(object.quaternion);
-				nearestPointInPlane(up,object.position,tangent, __tempVector2);
+				const targetPoint = this.curve.getTangentAt(t, __tempTangent);
+				targetPoint.normalize();
+				targetPoint.add(object.position);
+
+				// Get the unit vector from the object toward the target
+				nearestPointInPlane(object, targetPoint, __tempVector2);
 				__tempVector2.sub(object.position);
 				__tempVector2.normalize();
-				const objectDirection = __tempVector1.set(0,0,1).applyQuaternion(object.quaternion);
+
+				// Get the vector the object is currently facing
+				const objectDirection = __tempVector1.set(0,0,-1).applyQuaternion(object.quaternion);
+
+				// Get the quaternion that maps one to the other
 				const rotation = __tempQuaternion.setFromUnitVectors(objectDirection, __tempVector2);
+
+				// Apply that quaternion
 				object.quaternion.premultiply(rotation);
 			});
 			this.curve.closed = this.data.closed;
@@ -251,14 +258,18 @@ AFRAME.registerComponent('draw-curve', {
 
 });
 
-function nearestPointInPlane(normal, p0, p1, out) {
-	const d = normal.dot(p0);
+function nearestPointInPlane(object, p1, out) {
+	const normal = __tempVector1.set(0,1,0)
+	  .applyQuaternion(object.quaternion);
+	const d = normal.dot(object.position);
 
+	// distance of point from plane
 	const t = (d - normal.dot(p1))/normal.length();
+
+	// closest point on the plane
 	out.copy(normal);
 	out.multiplyScalar(t);
 	out.add(p1);
-
 	return out;
 }
 
