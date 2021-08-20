@@ -26,6 +26,7 @@
 			<a-asset-item id="cart-glb" src="./cart.glb"></a-asset-item>
 			<a-asset-item id="flag-glb" src="./flag.glb"></a-asset-item>
 			<a-asset-item id="tracks-glb" src="./tracks.glb"></a-asset-item>
+			<a-asset-item id="station-glb" src="./station.glb"></a-asset-item>
 		</a-assets>
 
 		<a-light id="dirlight" intensity="0.7" light="castShadow:true;type:directional" position="1 1 1"></a-light>
@@ -36,10 +37,15 @@
 
 		<a-box position="-3 0.15 -6" scale="0.5 0.3 0.5"></a-box>
 		<a-curve position="0 0.1 0" closed="true" clone-along-curve="spacing: 0.16;" gltf-model="#tracks-glb">
+			<a-gltf-model src="#station-glb" position="1 0 -2" rotation="0 -90 0">
+				<a-curve-point position="0 0 -2" gltf-model="#flag-glb"></a-curve-point>
+				<a-curve-point position="0 0 -0.75" gltf-model="#flag-glb"></a-curve-point>
+				<a-curve-point position="0 0 0.5" gltf-model="#flag-glb"></a-curve-point>
+			</a-gltf-model>
 			<a-curve-point position="0 0 -3" gltf-model="#flag-glb"></a-curve-point>
 			<a-curve-point position="-3 0.3 -6" gltf-model="#flag-glb"></a-curve-point>
 			<a-curve-point position="0 0 -9" gltf-model="#flag-glb"></a-curve-point>
-			<a-curve-point position="3 0 -6" gltf-model="#flag-glb"></a-curve-point>
+			<a-curve-point position="5 0 -6" gltf-model="#flag-glb"></a-curve-point>
 
 			<a-gltf-model src="#cart-glb" roller-coaster="curve:a-curve;"></a-gltf-model>
 		</a-curve>

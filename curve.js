@@ -11,9 +11,8 @@ const __tempPointA = new THREE.Vector3();
 const __tempPointB = new THREE.Vector3();
 const __tempMatrix4 = new THREE.Matrix4();
 const __tempQuaternion = new THREE.Quaternion();
-const up = new THREE.Vector3(0, 1, 0);
+const zeroVector3 = new THREE.Vector3(0, 0, 0);
 const zAxis = new THREE.Vector3(0, 0, 1);
-const degToRad = THREE.Math.degToRad;
 
 AFRAME.registerComponent('curve-point', {
 
@@ -26,10 +25,19 @@ AFRAME.registerComponent('curve-point', {
 		while (el && el.matches && !el.matches('a-curve,[curve]')) el = el.parentNode;
 		if (!el) throw Error('curve-points need to be inside a curve');
 		this.parentCurve = el;
+		this.oldPos = new THREE.Vector3();
 	},
 
 	update: function () {
 		this.parentCurve.updateComponent('curve');
+	},
+
+	tick() {
+		const worldPos = this.el.object3D.getWorldPosition(__tempPointA);
+		if (this.oldPos.manhattanDistanceTo(worldPos) !== 0) {
+			this.el.emit('point-shift');
+		}
+		this.oldPos.copy(worldPos);
 	},
 
 	remove: function () {
@@ -56,37 +64,66 @@ AFRAME.registerComponent('curve', {
 		}
 	},
 
+	init: function () {
+		this.onPointShift = this.onPointShift.bind(this);
+		this.el.addEventListener('point-shift', this.onPointShift);
+		this.points = new Map();
+	},
+
+	onPointShift() {
+		if (this.curve) {
+			this.handlePointParents();
+			this.curve.updateArcLengths();
+			this.el.emit('curve-shift');
+		}
+	},
+
 	update: function () {
 		this.needsUpdate = true;
 	},
 
-	tick: function () {
+	handlePointParents () {
+		for (const [object, position] of this.points) {
+			position.copy(object.position);
+			let hasReachedTop = false;
+			object.traverseAncestors(parent => {
+				if (parent === this.el.object3D) hasReachedTop = true;
+				if (hasReachedTop) return;
+				position.applyMatrix4(parent.matrix);
+			});
+		}
+	},
+
+	tick() {
 		if (!this.needsUpdate) return;
 		this.needsUpdate = false;
 
-		const pointObjects = Array.from(
-			this.el.querySelectorAll('a-curve-point')
-		).map(el => el.object3D)
-		.filter(obj => !!obj);
+		this.points = new Map(
+			Array.from(
+				this.el.querySelectorAll('a-curve-point')
+			).map(el => el.object3D)
+			.filter(obj => !!obj)
+			.map(obj => {
+				return [obj, new THREE.Vector3()];
+			})
+		);
 
-		if (pointObjects.length <= 1) return;
+		this.handlePointParents();
+
+		if (this.points.size <= 1) return;
 
 		const threeConstructor =  THREE[this.data.type + 'Curve3'];
 		if (!threeConstructor) {
 			this.pause();
 			throw ('No Three constructor of type (case sensitive): ' + this.data.type + 'Curve3');
 		}
-		this.curve = new threeConstructor(
-			pointObjects.map(function (a) {
-				if (a.position.x !== undefined && a.position.y !== undefined && a.position.z !== undefined) {
-					return a.position;
-				}
-			})
-		);
+		this.curve = new threeConstructor(Array.from(this.points.values()));
 
 		if (this.data.type === 'CatmullRom') {
-			pointObjects.forEach((object, i) => {
-				const t = i/(pointObjects.length - 1);
+			this.curve.closed = this.data.closed;
+			let i=0;
+			for (const [object] of this.points) {
+				const t = i++/(this.points.size - 1);
 				const targetPoint = this.curve.getTangentAt(t, __tempTangent);
 				targetPoint.normalize();
 				targetPoint.add(object.position);
@@ -104,24 +141,23 @@ AFRAME.registerComponent('curve', {
 
 				// Apply that quaternion
 				object.quaternion.premultiply(rotation);
-			});
-			this.curve.closed = this.data.closed;
+			}
 		}
 		
-		this.curve.arcLengthDivisions = Math.ceil(this.curve.getLength()/0.01);
 		this.curve.updateArcLengths();
+		this.curve.arcLengthDivisions = Math.ceil(this.curve.getLength()/0.01);
 
 		this.el.emit('curve-updated');
 
 		this.ready = true;
 	},
 
-	remove: function () {
+	remove () {
 		this.curve = null;
 		this.ready = false;
 	},
 
-	closestPointInLocalSpace: function closestPoint(point, resolution, testPoint, currentRes) {
+	closestPointInLocalSpace(point, resolution, testPoint, currentRes) {
 		if (!this.ready) throw Error('Curve not instantiated yet.');
 		resolution = resolution || 0.1 / this.curve.getLength();
 		currentRes = currentRes || 0.5;
@@ -287,50 +323,97 @@ AFRAME.registerComponent('clone-along-curve', {
 	},
 
 	init: function () {
-		this.el.addEventListener('model-loaded', this.update.bind(this));
-		this.el.addEventListener('curve-updated', this.update.bind(this));
+		this.onPointShift = this.onPointShift.bind(this);
+		this.update = this.update.bind(this);
+		this.el.addEventListener('model-loaded', this.update);
+		this.pointShift = true;
 	},
 
 	update: function () {
 		this.remove();
 		if (this.data.curve) {
+			this.curveEl = this.data.curve;
 			this.curve = this.data.curve.components.curve;
+			this.curveEl.addEventListener('curve-shift', this.onPointShift);
+			this.curveEl.addEventListener('curve-updated', this.update);
 		} else if (this.el.components.curve.curve) {
+			this.curveEl = this.el;
 			this.curve = this.el.components.curve;
+			this.curveEl.addEventListener('curve-shift', this.onPointShift);
+			this.curveEl.addEventListener('curve-updated', this.update);
 		}
 	},
 
-	tick: function () {
-		const mesh = this.el.getObject3D('mesh');
-		if (mesh && !this.el.getObject3D('clones') && this.curve) {
-
-			mesh.visible = false;
+	onPointShift: function () {
+		this.pointShift = true;
+		const clones = this.el.getObject3D('clones');
+		if (clones) {
+			const cloneCount = clones.children[0].instanceMatrix.count;
 			const length = this.curve.curve.getLength();
 			const count = Math.ceil(length/this.data.spacing);
-			const cloneMesh =  new THREE.Group();
-			this.el.setObject3D('clones', cloneMesh);
-			const meshes = [];
-			mesh.traverse(function (obj) {
-				if (obj.geometry) {
-					const geometry = obj.geometry.clone();
-					geometry.applyMatrix4(obj.matrix);
-					const mesh = new THREE.InstancedMesh(geometry, obj.material, count);
-					meshes.push(mesh);
-					cloneMesh.add(mesh);
-				}
-			});
 
-			for (let i=0;i<count;i++) {
-				const proportionAlong = i/count;
-				const t = this.curve.curve.getUtoTmapping( proportionAlong );
-				const tangent = this.curve.curve.getTangent(t, __tempTangent).normalize();
-				__tempMatrix4.compose(
-					this.curve.curve.getPoint(t, __tempPointA),
-					__tempQuaternion.setFromUnitVectors(zAxis, tangent),
-					this.data.scale
-				);
-				for (const instance of meshes) {
-					instance.setMatrixAt(i,__tempMatrix4);
+			// If the new needed amount needs more than 5% more pieces then regenerate the isntanced mesh
+			if (count > Math.floor(cloneCount * 1.05)) {
+				this.update();
+			}
+		}
+	},
+
+	tick() {
+		const mesh = this.el.getObject3D('mesh');
+		if (mesh) {
+			let clones = this.el.getObject3D('clones');
+			const length = this.curve.curve.getLength();
+			const count = Math.ceil(length/this.data.spacing);
+
+			if (!clones && this.curve) {
+
+				mesh.visible = false;
+				clones =  new THREE.Group();
+				this.el.setObject3D('clones', clones);
+				mesh.traverse(function (obj) {
+					if (obj.geometry) {
+						const geometry = obj.geometry.clone();
+						geometry.applyMatrix4(obj.matrix);
+						const mesh = new THREE.InstancedMesh(geometry, obj.material, count);
+						mesh.instanceMatrix.setUsage( THREE.DynamicDrawUsage );
+						clones.add(mesh);
+					}
+				});
+				this.pointShift = true;
+			}
+
+			// reposition points
+			if (this.pointShift) {
+				const cloneCount = clones.children[0].instanceMatrix.count;
+				for (let i=0;i<cloneCount;i++) {
+					if (i>count) {
+						// Hide excess clone pieces
+						__tempMatrix4.compose(
+							zeroVector3,
+							__tempQuaternion,
+							zeroVector3
+						);
+						for (const instance of clones.children) {
+							instance.setMatrixAt(i,__tempMatrix4);
+						}
+					} else {
+	
+						// handle when there aren't enough clone pieces
+						const proportionAlong = i/Math.min(count, cloneCount);
+						const t = this.curve.curve.getUtoTmapping( proportionAlong );
+						const tangent = this.curve.curve.getTangent(t, __tempTangent).normalize();
+						__tempMatrix4.compose(
+							this.curve.curve.getPoint(t, __tempPointA),
+							__tempQuaternion.setFromUnitVectors(zAxis, tangent),
+							this.data.scale
+						);
+						for (const instance of clones.children) {
+							instance.setMatrixAt(i,__tempMatrix4);
+						}
+					}
+				}
+				for (const instance of clones.children) {
 					instance.instanceMatrix.needsUpdate = true;
 				}
 			}

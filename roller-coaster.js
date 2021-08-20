@@ -28,6 +28,7 @@ AFRAME.registerComponent('roller-coaster', {
 		this.speed = 0;
 	},
 	tick(time, delta) {
+		delta = Math.min(delta, 100);
 		const mesh = this.el.getObject3D('mesh');
 		const count = 5;
 		const terminalVelocity = 0.3;
