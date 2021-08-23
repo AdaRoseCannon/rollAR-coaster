@@ -17,7 +17,7 @@
 	<a-scene
 		webxr="overlayElement:#dom-overlay;"
 		background="directionalLight:#dirlight;"
-		ar-hit-test
+		ar-hit-test="target:#station;type:map;"
 		shadow="type: pcfsoft"
 		gltf-model="dracoDecoderPath: https://cdn.jsdelivr.net/npm/three@0.129.0/examples/js/libs/draco/gltf/;"
 	>
@@ -29,51 +29,88 @@
 			<a-asset-item id="station-glb" src="./station.glb"></a-asset-item>
 		</a-assets>
 
+		<a-camera position="0.4 0.2 -0.4"></a-camera>
+
 		<a-light id="dirlight" intensity="0.7" light="castShadow:true;type:directional" position="1 1 1"></a-light>
 		<a-light hide-on-enter-ar intensity="0.3" light="type:hemisphere;color:yellow;groundColor:blue;"
 			position="1 1 1"></a-light>
 
-		<a-entity hide-on-enter-ar environment="lighting:none;shadow:true;"></a-entity>
+		<a-entity hide-on-enter-ar environment="lighting:none;shadow:true;" position="0 -0.05 0"></a-entity>
 
-		<a-box position="-3 0.15 -6" scale="0.5 0.3 0.5"></a-box>
-		<a-curve position="0 0.1 0" closed="true" clone-along-curve="spacing: 0.16;" gltf-model="#tracks-glb">
-			<a-gltf-model src="#station-glb" position="1 0 -2" rotation="0 -90 0">
-				<a-curve-point position="0 0 -2" gltf-model="#flag-glb"></a-curve-point>
-				<a-curve-point position="0 0 -0.75" gltf-model="#flag-glb"></a-curve-point>
-				<a-curve-point position="0 0 0.5" gltf-model="#flag-glb"></a-curve-point>
-			</a-gltf-model>
-			<a-curve-point position="0 0 -3" gltf-model="#flag-glb"></a-curve-point>
-			<a-curve-point position="-3 0.3 -6" gltf-model="#flag-glb"></a-curve-point>
-			<a-curve-point position="0 0 -9" gltf-model="#flag-glb"></a-curve-point>
-			<a-curve-point position="5 0 -6" gltf-model="#flag-glb"></a-curve-point>
+		<a-curve hide-on-enter-ar closed="true" tension="0.1" clone-along-curve="spacing: 0.06;scale:0.4 0.4 0.4;" gltf-model="#tracks-glb">
+			<a-entity id="station" position="1 0 -2" scale="0.4 0.4 0.4">
+				<a-gltf-model src="#station-glb" rotation="0 -90 0">
+					<a-curve-point id="end-point" position="0 0 -2" gltf-model="#flag-glb"></a-curve-point>
+					<a-curve-point position="0 0 -0.75" gltf-model="#flag-glb"></a-curve-point>
+					<a-curve-point position="0 0 0.5" gltf-model="#flag-glb"></a-curve-point>
+				</a-gltf-model>
+			</a-entity>
+			<a-entity scale="0.4 0.4 0.4" class="sample">
+				<a-curve-point position="0 0 -3" gltf-model="#flag-glb"></a-curve-point>
+				<a-curve-point position="-3 0 -3" gltf-model="#flag-glb"></a-curve-point>
+				<a-box position="-3 1.4 -6" scale="0.5 0.33 0.5">
+					<a-curve-point position="0 1 0" scale="2 3 2" gltf-model="#flag-glb"></a-curve-point>
+				</a-box>
+				<a-curve-point position="0 0.3 -7" gltf-model="#flag-glb"></a-curve-point>
+				<a-curve-point position="5 0 -6" gltf-model="#flag-glb"></a-curve-point>
+			</a-entity>
 
-			<a-gltf-model src="#cart-glb" roller-coaster="curve:a-curve;"></a-gltf-model>
+			<a-gltf-model scale="0.8 0.8 0.8" src="#cart-glb" roller-coaster="curve:a-curve;spacing:0.16;"></a-gltf-model>
 		</a-curve>
 	</a-scene>
 
 	<div id="dom-overlay">
-		<h1>Rollar Coaster</h1>
+		<h1>RollAR Coaster</h1>
 		<p id="dom-overlay-message">Enter AR to start.</p>
 	</div>
 	<script>(function () {
 		const sceneEl = document.querySelector('a-scene');
+		const curveEl = document.querySelector('a-curve');
 		const message = document.getElementById('dom-overlay-message');
+		const endPoint = document.querySelector('#end-point');
 
+		let pointNo = 0;
+		function hitTestSelect () {
+			curveEl.setAttribute('visible', true);
+			message.textContent = '';
+
+			const lastPlacedPoint = sceneEl.getAttribute('ar-hit-test').target;
+			const endPointPosition = endPoint.object3D.getWorldPosition();
+			const lastPointPosition = lastPlacedPoint.object3D.getWorldPosition();
+			if (endPointPosition.distanceTo(lastPointPosition) < 0.3) {
+				lastPlacedPoint.remove();
+				curveEl.setAttribute('closed',  true);
+				sceneEl.setAttribute('ar-hit-test', 'enabled', false);
+			} else {
+				const id = 'point-' + pointNo++;
+				const el = document.createElement('a-curve-point');
+				const p = lastPlacedPoint.object3D.position;
+				el.setAttribute('gltf-model', "#flag-glb");
+				el.setAttribute('position', `${p.x} ${p.y} ${p.z+0.2}`);
+				el.setAttribute('scale', `0.4 0.4 0.4`);
+				el.id=id;
+				curveEl.insertAdjacentElement('beforeend',  el);
+				sceneEl.setAttribute('ar-hit-test', 'target', '#' + id);
+			}
+		}
 		sceneEl.addEventListener('enter-vr', function () {
 			if (this.is('ar-mode')) {
 				message.textContent = '';
+
+				curveEl.setAttribute('closed',  false);
+				for (const el of document.querySelectorAll('.sample')) {
+					el.remove();
+				}
 
 				this.addEventListener('ar-hit-test-start', function () {
 					message.innerHTML = `Scanning environment, finding surface.`
 				}, { once: true });
 
 				this.addEventListener('ar-hit-test-achieved', function () {
-					message.innerHTML = `Select the location to place the furniture<br />By tapping on the screen or selecting with your controller.`
+					message.innerHTML = `Select the location to place the station<br />By tapping on the screen or selecting with your controller.`
 				}, { once: true });
 
-				this.addEventListener('ar-hit-test-select', function () {
-					message.textContent = '';
-				}, { once: true });
+				this.addEventListener('ar-hit-test-select', hitTestSelect);
 			}
 		});
 

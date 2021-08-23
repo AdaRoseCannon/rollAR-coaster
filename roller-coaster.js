@@ -31,7 +31,7 @@ AFRAME.registerComponent('roller-coaster', {
 		delta = Math.min(delta, 100);
 		const mesh = this.el.getObject3D('mesh');
 		const count = 5;
-		const terminalVelocity = 0.3;
+		const terminalVelocity = this.data.spacing/5;
 		const minSpeed = 0.005;
 		const timeMultiplier = delta/16;
 
@@ -65,7 +65,7 @@ AFRAME.registerComponent('roller-coaster', {
 
 			const tangent = this.curve.curve.getTangentAt(t, __tempTangent).normalize();
 			this.meshes[i-iOffset].matrix.compose(
-				this.curve.curve.getPointAt(t, __tempPoint),
+				this.curve.curve.getPointAt(t, __tempPoint).divide(this.el.object3D.scale),
 				__tempQuaternion.setFromUnitVectors(__zAxis, tangent),
 				this.el.object3D.scale
 			);

@@ -29,7 +29,7 @@ AFRAME.registerComponent('curve-point', {
 	},
 
 	update: function () {
-		this.parentCurve.updateComponent('curve');
+		this.el.emit('point-change');
 	},
 
 	tick() {
@@ -41,7 +41,7 @@ AFRAME.registerComponent('curve-point', {
 	},
 
 	remove: function () {
-		this.update();
+		this.el.emit('point-change');
 	}
 
 });
@@ -50,13 +50,8 @@ AFRAME.registerComponent('curve', {
 
 	schema: {
 
-		// CatmullRom
-		// Spline
-		// CubicBezier
-		// QuadraticBezier
-		// Line
-		type: {
-			default: 'CatmullRom'
+		tension: {
+			default: 0.25
 		},
 
 		closed: {
@@ -64,10 +59,29 @@ AFRAME.registerComponent('curve', {
 		}
 	},
 
-	init: function () {
+	init () {
 		this.onPointShift = this.onPointShift.bind(this);
+		this.onChildRemove = this.onChildRemove.bind(this);
+		this.update = this.update.bind(this);
 		this.el.addEventListener('point-shift', this.onPointShift);
+		this.el.addEventListener('point-change', this.update);
+		this.observer = new MutationObserver(this.onChildRemove);
+		this.observer.observe(this.el, {
+			subtree: true,
+			childList: true
+		});
 		this.points = new Map();
+	},
+
+	onChildRemove (mutationsList) {
+		const els = Array.from(this.points.keys());
+		for(const mutation of mutationsList) {
+			for (const node of mutation.removedNodes) {
+				if (els.includes(node)) {
+					this.needsUpdate = true;
+				}
+			}
+		}
 	},
 
 	onPointShift() {
@@ -83,9 +97,11 @@ AFRAME.registerComponent('curve', {
 	},
 
 	handlePointParents () {
-		for (const [object, position] of this.points) {
+		let hasReachedTop;
+		for (const [el, position] of this.points) {
+			const object = el.object3D;
 			position.copy(object.position);
-			let hasReachedTop = false;
+			hasReachedTop = false;
 			object.traverseAncestors(parent => {
 				if (parent === this.el.object3D) hasReachedTop = true;
 				if (hasReachedTop) return;
@@ -99,12 +115,10 @@ AFRAME.registerComponent('curve', {
 		this.needsUpdate = false;
 
 		this.points = new Map(
-			Array.from(
-				this.el.querySelectorAll('a-curve-point')
-			).map(el => el.object3D)
-			.filter(obj => !!obj)
-			.map(obj => {
-				return [obj, new THREE.Vector3()];
+			Array.from(this.el.querySelectorAll('a-curve-point'))
+			.filter(el => !!el.object3D)
+			.map(el => {
+				return [el, new THREE.Vector3()];
 			})
 		);
 
@@ -112,36 +126,30 @@ AFRAME.registerComponent('curve', {
 
 		if (this.points.size <= 1) return;
 
-		const threeConstructor =  THREE[this.data.type + 'Curve3'];
-		if (!threeConstructor) {
-			this.pause();
-			throw ('No Three constructor of type (case sensitive): ' + this.data.type + 'Curve3');
-		}
-		this.curve = new threeConstructor(Array.from(this.points.values()));
+		this.curve = new THREE.CatmullRomCurve3(Array.from(this.points.values()));
 
-		if (this.data.type === 'CatmullRom') {
-			this.curve.closed = this.data.closed;
-			let i=0;
-			for (const [object] of this.points) {
-				const t = i++/(this.points.size - 1);
-				const targetPoint = this.curve.getTangentAt(t, __tempTangent);
-				targetPoint.normalize();
-				targetPoint.add(object.position);
+		this.curve.closed = this.data.closed;
+		this.curve.tension = this.data.tension;
+		let i=0;
+		for (const [{object3D: object}] of this.points) {
+			const t = i++/(this.points.size - 1);
+			const targetPoint = this.curve.getTangentAt(t, __tempTangent);
+			targetPoint.normalize();
+			targetPoint.add(object.position);
 
-				// Get the unit vector from the object toward the target
-				nearestPointInPlane(object, targetPoint, __tempVector2);
-				__tempVector2.sub(object.position);
-				__tempVector2.normalize();
+			// Get the unit vector from the object toward the target
+			nearestPointInPlane(object, targetPoint, __tempVector2);
+			__tempVector2.sub(object.position);
+			__tempVector2.normalize();
 
-				// Get the vector the object is currently facing
-				const objectDirection = __tempVector1.set(0,0,-1).applyQuaternion(object.quaternion);
+			// Get the vector the object is currently facing
+			const objectDirection = __tempVector1.set(0,0,-1).applyQuaternion(object.quaternion);
 
-				// Get the quaternion that maps one to the other
-				const rotation = __tempQuaternion.setFromUnitVectors(objectDirection, __tempVector2);
+			// Get the quaternion that maps one to the other
+			const rotation = __tempQuaternion.setFromUnitVectors(objectDirection, __tempVector2);
 
-				// Apply that quaternion
-				object.quaternion.premultiply(rotation);
-			}
+			// Apply that quaternion
+			object.quaternion.premultiply(rotation);
 		}
 		
 		this.curve.updateArcLengths();
@@ -155,6 +163,7 @@ AFRAME.registerComponent('curve', {
 	remove () {
 		this.curve = null;
 		this.ready = false;
+		this.observer.disconnect();
 	},
 
 	closestPointInLocalSpace(point, resolution, testPoint, currentRes) {
@@ -454,6 +463,7 @@ AFRAME.registerPrimitive('a-curve', {
 	},
 	mappings: {
 		closed: 'curve.closed',
+		tension: 'curve.tension'
 	}
 
 });
