@@ -7,7 +7,6 @@ const __zAxis = new THREE.Vector3(0, 0, 1);
 const __tempTangent = new THREE.Vector3();
 const __tempPoint = new THREE.Vector3();
 const __tempQuaternion = new THREE.Quaternion();
-const __tempMatrix4 = new THREE.Matrix4();
 
 AFRAME.registerComponent('roller-coaster', {
 	schema: {
@@ -25,7 +24,7 @@ AFRAME.registerComponent('roller-coaster', {
 	},
 	update() {
 		this.curve = null;
-		this.speed = 0;
+		this.speed = 5;
 	},
 	tick(time, delta) {
 		delta = Math.min(delta, 100);
@@ -70,8 +69,8 @@ AFRAME.registerComponent('roller-coaster', {
 				this.el.object3D.scale
 			);
 			if (i-iOffset === 0) {
-				// gravity accelaration
-				this.speed = Math.min(speed + 0.2 * -9.8 * distanceToTravel * tangent.y, terminalVelocity);
+				// gravity accelaration, limit the top speed by the terminal velocity and rate of decleration to prevent sudden slow downs
+				this.speed = Math.min(speed + Math.max(-0.133 * distanceToTravel, 0.5 * -9.8 * distanceToTravel * tangent.y), terminalVelocity);
 				this.speed *= 1 - delta * 0.0001; // friction
 			}
 		}

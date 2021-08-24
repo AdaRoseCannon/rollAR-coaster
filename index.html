@@ -1,14 +1,35 @@
 <html>
 
 <head>
+	<!-- <script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@b7a2d32d744d5c3868b1afaf9bd59e2d7b6bdfa5/dist/aframe-master.min.js"></script> -->
 	<script src="./aframe.js"></script>
+	<script src="https://unpkg.com/aframe-environment-component@1.2.0/dist/aframe-environment-component.min.js"></script>
 	<script src="./curve.js"></script>
 	<script src="./roller-coaster.js"></script>
-	<script src="https://unpkg.com/aframe-environment-component@1.2.0/dist/aframe-environment-component.min.js"></script>
 	<title>RollAR Coaster</title>
 	<style>
 		body {
 			font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+			font-size: 24px;
+		}
+		#dom-overlay-message {
+			position: absolute;
+			left: 0;
+			bottom: 0;
+			right: 0;
+			padding: 1em;
+			background: #33333355;
+			border-top: 5px solid #ffffff55;
+			color: white;
+		}
+		.a-dom-overlay button {
+			padding: 1em;
+			appearance: none;
+			background: #00000055;
+			border: 3px solid white;
+			border-radius: 1em;
+			margin: 1em 1em 0 0;
+			color: white;
 		}
 	</style>
 </head>
@@ -40,7 +61,9 @@
 		<a-curve hide-on-enter-ar closed="true" tension="0.1" clone-along-curve="spacing: 0.06;scale:0.4 0.4 0.4;" gltf-model="#tracks-glb">
 			<a-entity id="station" position="1 0 -2" scale="0.4 0.4 0.4">
 				<a-gltf-model src="#station-glb" rotation="0 -90 0">
-					<a-curve-point id="end-point" position="0 0 -2" gltf-model="#flag-glb"></a-curve-point>
+					<a-curve-point id="end-point" position="0 0 -2" gltf-model="#flag-glb">
+						<a-circle visible="false" radius="0.3" rotation="-90 0 0" scale="2.5 2.5 2.5" material="color:limegreen;opacity:0.4;"></a-circle>
+					</a-curve-point>
 					<a-curve-point position="0 0 -0.75" gltf-model="#flag-glb"></a-curve-point>
 					<a-curve-point position="0 0 0.5" gltf-model="#flag-glb"></a-curve-point>
 				</a-gltf-model>
@@ -55,70 +78,15 @@
 				<a-curve-point position="5 0 -6" gltf-model="#flag-glb"></a-curve-point>
 			</a-entity>
 
-			<a-gltf-model scale="0.8 0.8 0.8" src="#cart-glb" roller-coaster="curve:a-curve;spacing:0.16;"></a-gltf-model>
+			<a-gltf-model id="cart" hide-on-enter-ar scale="0.8 0.8 0.8" src="#cart-glb" roller-coaster="curve:a-curve;spacing:0.16;"></a-gltf-model>
 		</a-curve>
 	</a-scene>
 
 	<div id="dom-overlay">
 		<h1>RollAR Coaster</h1>
-		<p id="dom-overlay-message">Enter AR to start.</p>
+		<div id="dom-overlay-message">Enter AR to start.</div>
 	</div>
-	<script>(function () {
-		const sceneEl = document.querySelector('a-scene');
-		const curveEl = document.querySelector('a-curve');
-		const message = document.getElementById('dom-overlay-message');
-		const endPoint = document.querySelector('#end-point');
-
-		let pointNo = 0;
-		function hitTestSelect () {
-			curveEl.setAttribute('visible', true);
-			message.textContent = '';
-
-			const lastPlacedPoint = sceneEl.getAttribute('ar-hit-test').target;
-			const endPointPosition = endPoint.object3D.getWorldPosition();
-			const lastPointPosition = lastPlacedPoint.object3D.getWorldPosition();
-			if (endPointPosition.distanceTo(lastPointPosition) < 0.3) {
-				lastPlacedPoint.remove();
-				curveEl.setAttribute('closed',  true);
-				sceneEl.setAttribute('ar-hit-test', 'enabled', false);
-			} else {
-				const id = 'point-' + pointNo++;
-				const el = document.createElement('a-curve-point');
-				const p = lastPlacedPoint.object3D.position;
-				el.setAttribute('gltf-model', "#flag-glb");
-				el.setAttribute('position', `${p.x} ${p.y} ${p.z+0.2}`);
-				el.setAttribute('scale', `0.4 0.4 0.4`);
-				el.id=id;
-				curveEl.insertAdjacentElement('beforeend',  el);
-				sceneEl.setAttribute('ar-hit-test', 'target', '#' + id);
-			}
-		}
-		sceneEl.addEventListener('enter-vr', function () {
-			if (this.is('ar-mode')) {
-				message.textContent = '';
-
-				curveEl.setAttribute('closed',  false);
-				for (const el of document.querySelectorAll('.sample')) {
-					el.remove();
-				}
-
-				this.addEventListener('ar-hit-test-start', function () {
-					message.innerHTML = `Scanning environment, finding surface.`
-				}, { once: true });
-
-				this.addEventListener('ar-hit-test-achieved', function () {
-					message.innerHTML = `Select the location to place the station<br />By tapping on the screen or selecting with your controller.`
-				}, { once: true });
-
-				this.addEventListener('ar-hit-test-select', hitTestSelect);
-			}
-		});
-
-		sceneEl.addEventListener('exit-vr', function () {
-			message.textContent = '';
-		});
-	
-	}())</script>
+	<script src="main.js"></script>
 </body>
 
 </html>
