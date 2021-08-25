@@ -304,8 +304,7 @@ AFRAME.registerComponent('draw-curve', {
 });
 
 function nearestPointInPlane(object, p1, out) {
-	const normal = __tempVector1.set(0,1,0)
-	  .applyQuaternion(object.quaternion);
+	const normal = __tempVector1.set(0,1,0).applyQuaternion(object.quaternion);
 	const d = normal.dot(object.position);
 
 	// distance of point from plane
