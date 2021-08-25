@@ -6,32 +6,8 @@
 	<script src="https://unpkg.com/aframe-environment-component@1.2.0/dist/aframe-environment-component.min.js"></script>
 	<script src="./curve.js"></script>
 	<script src="./roller-coaster.js"></script>
+	<link rel="stylesheet" href="style.css" />
 	<title>RollAR Coaster</title>
-	<style>
-		body {
-			font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
-			font-size: 24px;
-		}
-		#dom-overlay-message {
-			position: absolute;
-			left: 0;
-			bottom: 0;
-			right: 0;
-			padding: 1em;
-			background: #33333355;
-			border-top: 5px solid #ffffff55;
-			color: white;
-		}
-		.a-dom-overlay button {
-			padding: 1em;
-			appearance: none;
-			background: #00000055;
-			border: 3px solid white;
-			border-radius: 1em;
-			margin: 1em 1em 0 0;
-			color: white;
-		}
-	</style>
 </head>
 
 <body>
@@ -83,7 +59,23 @@
 	</a-scene>
 
 	<div id="dom-overlay">
-		<h1>RollAR Coaster</h1>
+		<svg viewBox="0 0 340 200">
+			<filter id="goo">
+				<feGaussianBlur in="SourceGraphic" result="blur" stdDeviation="5" />
+				<feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+				<feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+			</filter>
+			<path id="curve" d="M6,150C49.63,93,105.79,36.65,156.2,47.55,207.89,58.74,213,131.91,264,150c40.67,14.43,108.57-6.91,229-145" />
+			<use xlink:href="#main" class="bg" />
+			<use xlink:href="#main" class="main" />
+			<text id="main" x="30">
+				<textPath xlink:href="#curve">
+					<tspan style="font-size: 45px;">R</tspan>oll<tspan class="caps">AR</tspan> coaster
+				</textPath>
+				<tspan x="190" y="40" rotate="30">!</tspan>
+				<tspan x="185" y="30" rotate="15">!</tspan>
+			</text>
+		</svg>
 		<div id="dom-overlay-message">Enter AR to start.</div>
 	</div>
 	<script src="main.js"></script>

@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Mali:ital,wght@1,700&display=swap');
+body {
+	font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+	font-size: 24px;
+}
+
+svg {
+	width: 60vmin;
+	max-width: 450px;
+	transform: perspective(400px) rotateY(20deg);
+}
+
+text#main {
+	font-family: 'Mali', cursive;
+	font-weight: 800;
+	font-size: 40px;
+	letter-spacing: 0.1ch;
+	font-variant: small-caps;
+	dominant-baseline: central;
+	fill: white;
+}
+
+.main {
+	fill: #FFFFFF;
+	stroke-width: 1px;
+	stroke: white;
+	filter: drop-shadow(0 0.5px 0 #ccc) drop-shadow(0 1px 0 #c9c9c9) drop-shadow(0 1.5px 0 #bbb) drop-shadow(0 2px 0 #b9b9b9) drop-shadow(0 2.5px 0 #aaa) drop-shadow(0 2.5px 5px #6005);
+}
+
+tspan.caps {
+	font-size: 60px;
+}
+
+.bg {
+	stroke: lightsalmon;
+	stroke-width: 12px;
+	filter: url('#goo') drop-shadow(0 2px 0 #eb8f6d) drop-shadow(0 1.5px 0 #ccc) drop-shadow(0 2px 0 #c9c9c9) drop-shadow(0 2.5px 0 #bbb) drop-shadow(0 2.5px 5px #6005);
+	dominant-baseline: mathematical;
+}
+
+path {
+	fill: transparent;
+}
+
+#dom-overlay-message {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	padding: 1em;
+	background: #33333355;
+	border-top: 5px solid #ffffff55;
+	color: white;
+}
+
+.a-dom-overlay button {
+	padding: 1em;
+	appearance: none;
+	background: #00000055;
+	border: 3px solid white;
+	border-radius: 1em;
+	margin: 1em 1em 0 0;
+	color: white;
+}

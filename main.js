@@ -21,6 +21,7 @@
 		const lastPlacedPoint = sceneEl.getAttribute('ar-hit-test').target;
 		const endPointPosition = endPoint.object3D.getWorldPosition(__tempVec1);
 		const lastPointPosition = lastPlacedPoint.object3D.getWorldPosition(__tempVec2);
+		curveEl.play();
 		if (
 			endPointPosition.distanceTo(lastPointPosition) < 0.3
 		) {
@@ -34,11 +35,6 @@
 			cart.setAttribute('visible', true);
 		}
 	}
-
-	sceneEl.addEventListener('exit-vr', function () {
-		this.setAttribute('ar-hit-test', 'enabled', true);
-	});
-
 	sceneEl.addEventListener('enter-vr', function () {
 		if (this.is('ar-mode')) {
 			message.textContent = '';
@@ -62,11 +58,13 @@
 				const id = 'point-' + pointNo++;
 				const el = document.createElement('a-curve-point');
 				const p = lastPlacedPoint.object3D.position;
+				curveEl.pause();
 				el.setAttribute('gltf-model', "#flag-glb");
 				el.setAttribute('position', `${p.x} ${p.y} ${p.z+0.2}`);
 				el.setAttribute('scale', `0.4 0.4 0.4`);
 				el.id=id;
 				curveEl.appendChild(el);
+				// pause the curve updating until we have placed the new way point
 				this.setAttribute('ar-hit-test', 'target', '#' + id);
 				waypointStack.push(el);
 			}.bind(this);
@@ -75,6 +73,8 @@
 				if (waypointStack.length === 0) {
 					message.innerHTML = `Select the location to place the station<br />By tapping on the screen or selecting with your controller.`;
 					this.setAttribute('ar-hit-test', 'target', '#station');
+					this.removeEventListener('ar-hit-test-select', hitTestSelect);
+					this.removeEventListener('ar-hit-test-select-start', nextFn);
 					this.addEventListener('ar-hit-test-select', placeStation, {once: true});
 				} else {
 					waypointStack.pop().remove();
@@ -83,6 +83,7 @@
 
 			const placeStation = function placeStation() {
 				this.addEventListener('ar-hit-test-select', hitTestSelect);
+				this.addEventListener('ar-hit-test-select-start', nextFn);
 				curveEl.setAttribute('visible', true);
 				message.innerHTML = `Place some way-points for the roller coaster track when you are finished join the track back up to the station.`;
 				
@@ -93,12 +94,6 @@
 				undo.textContent = 'Undo';
 				undo.addEventListener('click', undoFn);
 				buttons.appendChild(undo);
-	
-				const next = document.createElement('button');
-				next.textContent = 'Next';
-				next.addEventListener('click', nextFn);
-				buttons.appendChild(next);
-				nextFn();
 
 				buttons.addEventListener('beforexrselect', e => {
 					e.preventDefault();
@@ -110,6 +105,7 @@
 
 	sceneEl.addEventListener('exit-vr', function () {
 		message.textContent = '';
+		this.setAttribute('ar-hit-test', 'enabled', true);
 	});
 
 }());

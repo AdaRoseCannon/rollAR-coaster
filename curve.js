@@ -334,7 +334,13 @@ AFRAME.registerComponent('clone-along-curve', {
 	init: function () {
 		this.onPointShift = this.onPointShift.bind(this);
 		this.update = this.update.bind(this);
-		this.el.addEventListener('model-loaded', this.update);
+		this.el.addEventListener('model-loaded', function (e) {
+			// if the model is loaded for this element then update so it can be used
+			// Don't trigger update for child elements models updating
+			if (e.target === this.el) {
+				this.update();
+			}
+		}.bind(this));
 		this.pointShift = true;
 	},
 
