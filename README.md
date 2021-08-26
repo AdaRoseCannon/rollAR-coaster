@@ -1,6 +1,6 @@
-# rollAR-coaster
+# [rollAR-coaster](https://ada.is/rollar-coaster/)
 
-![RollAr-Coaster Preview](https://ada.is/rollAR-coaster/preview.png)
+[![RollAr-Coaster Preview](https://ada.is/rollAR-coaster/preview.png)](https://ada.is/rollar-coaster/)
 
 This demo lets you build your own Roller Coaster in AR using the WebXR Device API.
 
