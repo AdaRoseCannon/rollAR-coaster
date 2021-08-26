@@ -1,12 +1,11 @@
 /* jshint esversion: 9 */
 /* For dealing with spline curves */
-/* global THREE, AFRAME */
+/* global THREE */
 (function () {
 	"use strict";
 
 	const sceneEl = document.querySelector('a-scene');
 	const curveEl = document.querySelector('a-curve');
-	const domOverlayEl = document.getElementById('dom-overlay');
 	const message = document.getElementById('dom-overlay-message');
 	const cart = document.getElementById('cart');
 	const endPoint = document.getElementById('end-point');

@@ -54,7 +54,7 @@
 
 		<a-entity hide-on-enter-ar environment="lighting:none;shadow:true;" position="0 -0.05 0"></a-entity>
 
-		<a-curve hide-on-enter-ar closed="true" tension="0.1" clone-along-curve="spacing: 0.06;scale:0.4 0.4 0.4;" gltf-model="#tracks-glb">
+		<a-curve draw-curve="tangent:true;length:0.1;spacing:0.1;" hide-on-enter-ar closed="true" tension="0.1" clone-along-curve="spacing: 0.06;scale:0.4 0.4 0.4;" gltf-model="#tracks-glb">
 			<a-entity id="station" position="1 0 -2" scale="0.4 0.4 0.4">
 				<a-gltf-model src="#station-glb" rotation="0 -90 0">
 					<a-curve-point id="end-point" position="0 0 -2" gltf-model="#flag-glb">

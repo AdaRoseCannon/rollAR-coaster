@@ -130,34 +130,25 @@ AFRAME.registerComponent('curve', {
 
 		this.curve.closed = this.data.closed;
 		this.curve.tension = this.data.tension;
-		let i=0;
-		for (const [{object3D: object}] of this.points) {
-			const t = i++/(this.points.size - 1);
-			const targetPoint = this.curve.getTangentAt(t, __tempTangent);
-			targetPoint.normalize();
-			targetPoint.add(object.position);
-
-			// Get the unit vector from the object toward the target
-			nearestPointInPlane(object, targetPoint, __tempVector2);
-			__tempVector2.sub(object.position);
-			__tempVector2.normalize();
-
-			// Get the vector the object is currently facing
-			const objectDirection = __tempVector1.set(0,0,-1).applyQuaternion(object.quaternion);
-
-			// Get the quaternion that maps one to the other
-			const rotation = __tempQuaternion.setFromUnitVectors(objectDirection, __tempVector2);
-
-			// Apply that quaternion
-			object.quaternion.premultiply(rotation);
-		}
 		
-		this.curve.updateArcLengths();
 		this.curve.arcLengthDivisions = Math.ceil(this.curve.getLength()/0.01);
+		this.curve.updateArcLengths();
+		this.ready = true;
 
 		this.el.emit('curve-updated');
 
-		this.ready = true;
+		for (const [{object3D: object}, pointPosition] of this.points) {
+			const {
+				tangent, position
+			} = this.closestPointInLocalSpace(pointPosition);
+			const targetPoint = tangent.multiplyScalar(0.4).add(position);
+
+			// Get the unit vector from the object toward the target
+			const lookAtPoint = __tempVector2.copy(targetPoint);
+			const normal = __tempVector1.set(0,1,0).applyQuaternion(object.quaternion);
+			nearestPointInPlane(position, normal, targetPoint, lookAtPoint);
+			object.lookAt(lookAtPoint);
+		}
 	},
 
 	remove () {
@@ -166,35 +157,48 @@ AFRAME.registerComponent('curve', {
 		this.observer.disconnect();
 	},
 
-	closestPointInLocalSpace(point, resolution, testPoint, currentRes) {
+	closestPointInLocalSpace (point, resolution) {
+		const self = this;
 		if (!this.ready) throw Error('Curve not instantiated yet.');
 		resolution = resolution || 0.1 / this.curve.getLength();
-		currentRes = currentRes || 0.5;
-		testPoint = testPoint || 0.5;
-		currentRes /= 2;
-		const aTest = testPoint + currentRes;
-		const bTest = testPoint - currentRes;
-		const a = this.curve.getPointAt(aTest, __tempPointA);
-		const b = this.curve.getPointAt(bTest, __tempPointB);
-		const aDistance = a.distanceTo(point);
-		const bDistance = b.distanceTo(point);
-		const aSmaller = aDistance < bDistance;
-		if (currentRes < resolution) {
 
-			const tangent = this.curve.getTangentAt(aSmaller ? aTest : bTest, __tempTangent);
-			if (currentRes < resolution) return {
-				result: aSmaller ? aTest : bTest,
-				location: aSmaller ? a : b,
-				distance: aSmaller ? aDistance : bDistance,
-				normal: normalFromTangent(tangent, __tempVector1),
-				tangent: tangent
-			};
+		function binarySearch (testPoint, currentRes) {
+			const aTest = (1 + testPoint + currentRes) % 1;
+			const bTest = (1 + testPoint - currentRes) % 1;
+			const a = self.curve.getPointAt(aTest, __tempPointA);
+			const b = self.curve.getPointAt(bTest, __tempPointB);
+			const aDistance = a.distanceTo(point);
+			const bDistance = b.distanceTo(point);
+			const aSmaller = aDistance < bDistance;
+			if (currentRes < resolution) {
+
+				const tangent = self.curve.getTangentAt(aSmaller ? aTest : bTest, __tempTangent);
+				if (currentRes < resolution) return {
+					result: aSmaller ? aTest : bTest,
+					position: aSmaller ? a : b,
+					distance: aSmaller ? aDistance : bDistance,
+					normal: normalFromTangent(tangent, __tempVector1),
+					tangent: tangent
+				};
+			}
+			if (aDistance < bDistance) {
+				return binarySearch(aTest, currentRes/2);
+			} else {
+				return binarySearch(bTest, currentRes/2);
+			}
 		}
-		if (aDistance < bDistance) {
-			return this.closestPointInLocalSpace(point, resolution, aTest, currentRes);
-		} else {
-			return this.closestPointInLocalSpace(point, resolution, bTest, currentRes);
+
+		const samples = 20;
+		const results = [];
+		for (let i=0; i<=samples; i++) {
+			const u = (i/samples) % 1;
+			const linePoint = this.curve.getPointAt(u, __tempPointA);
+			const distance = point.distanceTo(linePoint);
+			results.push(distance);
 		}
+		const smallestDistance = results.reduce((a,b) => a<b?a:b);
+		const u = results.indexOf(smallestDistance)/samples;
+		return binarySearch(u, 1/samples);
 	}
 });
 
@@ -216,7 +220,8 @@ AFRAME.registerComponent('draw-curve', {
 		curve: { type: 'selector' },
 		spacing: { default: 0.5 },
 		tangent: { default: false },
-		normal: { default: false }
+		normal: { default: false },
+		length: { default: 0.1 }
 	},
 
 	init: function () {
@@ -254,11 +259,10 @@ AFRAME.registerComponent('draw-curve', {
 
 			// Generate normals and tangents for each point
 			if (this.data.tangent) points.forEach((p,i) => {
-				const proportionAlong = i/count;
-				const t = this.curve.curve.getUtoTmapping( proportionAlong );
+				const u = i/count;
 				lineEnd = __tempVector1;
 				lineEnd.copy(p);
-				lineEnd.add(this.curve.curve.getTangent(t, __tempTangent).normalize());
+				lineEnd.add(this.curve.curve.getTangentAt(u, __tempTangent).normalize().multiplyScalar(this.data.length));
 				
 				tangentGeometry = new THREE.BufferGeometry().setFromPoints([
 					p,lineEnd
@@ -274,12 +278,11 @@ AFRAME.registerComponent('draw-curve', {
 
 
 			if (this.data.normal) points.forEach((p,i) => {
-				const proportionAlong = i/count;
-				const t = this.curve.curve.getUtoTmapping( proportionAlong );
+				const u = i/count;
 				lineEnd = normalFromTangent(
-					this.curve.curve.getTangent(t, __tempTangent).normalize(),
+					this.curve.curve.getTangentAt(u, __tempTangent),
 					__tempVector1
-				);
+				).multiplyScalar(this.data.length);
 				lineEnd.add(p);
 
 				normalGeometry = new THREE.BufferGeometry().setFromPoints([
@@ -303,9 +306,8 @@ AFRAME.registerComponent('draw-curve', {
 
 });
 
-function nearestPointInPlane(object, p1, out) {
-	const normal = __tempVector1.set(0,1,0).applyQuaternion(object.quaternion);
-	const d = normal.dot(object.position);
+function nearestPointInPlane(position, normal, p1, out) {
+	const d = normal.dot(position);
 
 	// distance of point from plane
 	const t = (d - normal.dot(p1))/normal.length();
@@ -414,11 +416,10 @@ AFRAME.registerComponent('clone-along-curve', {
 					} else {
 	
 						// handle when there aren't enough clone pieces
-						const proportionAlong = i/Math.min(count, cloneCount);
-						const t = this.curve.curve.getUtoTmapping( proportionAlong );
-						const tangent = this.curve.curve.getTangent(t, __tempTangent).normalize();
+						const u = i/Math.min(count, cloneCount);
+						const tangent = this.curve.curve.getTangentAt(u, __tempTangent);
 						__tempMatrix4.compose(
-							this.curve.curve.getPoint(t, __tempPointA),
+							this.curve.curve.getPointAt(u, __tempPointA),
 							__tempQuaternion.setFromUnitVectors(zAxis, tangent),
 							this.data.scale
 						);
