@@ -13,8 +13,26 @@
 	const waypointStack = [];
 	const __tempVec1 = new THREE.Vector3();
 	const __tempVec2 = new THREE.Vector3();
+	const xAxis = new THREE.Vector3(1, 0, 0);
 	
 	let pointNo = 0;
+
+	function addLoop(container) {
+		const count = 8;
+		const radius = 0.8;
+		const width = 0.5;
+		for (let i=0; i<count; i++) {
+			const el = document.createElement('a-curve-point');
+			const x = radius * Math.sin(Math.PI - Math.PI * 2 * i/count);
+			const y = radius + radius * Math.cos(Math.PI - Math.PI * 2 * i/count);
+			el.setAttribute('position', `${0.2 + x} ${y} ${i*width/count}`);
+			container.appendChild(el);
+		}
+	}
+	(function () {
+		const loopParent = document.getElementById('loophere');
+		addLoop(loopParent);
+	}());
 
 	function hitTestSelect () {
 		const lastPlacedPoint = sceneEl.getAttribute('ar-hit-test').target;
@@ -58,8 +76,9 @@
 				const el = document.createElement('a-curve-point');
 				const p = lastPlacedPoint.object3D.position;
 				curveEl.pause();
+				const o = __tempVec1.set(0,0,0.5).applyQuaternion(lastPlacedPoint.object3D.quaternion);
 				el.setAttribute('gltf-model', "#flag-glb");
-				el.setAttribute('position', `${p.x} ${p.y} ${p.z+0.2}`);
+				el.setAttribute('position', `${p.x + o.x} ${p.y + o.y} ${p.z + o.z}`);
 				el.setAttribute('scale', `0.4 0.4 0.4`);
 				el.id=id;
 				curveEl.appendChild(el);
@@ -80,6 +99,26 @@
 				}
 			}.bind(this);
 
+			const loopALoopFn = function () {
+				if (!waypointStack.length) {
+					return;
+				}
+				const currentPoint = waypointStack.pop();
+				const position = currentPoint.object3D.position.clone();
+				const scale = currentPoint.object3D.scale.clone();
+				const newEl = document.createElement('a-entity');
+				addLoop(newEl);
+				const tangent = curveEl.components.curve.curve.getTangentAt(0.999, __tempVec1);
+				newEl.addEventListener('loaded', function () {
+					newEl.object3D.position.copy(position);
+					newEl.object3D.scale.copy(scale);
+					newEl.object3D.quaternion.setFromUnitVectors(xAxis, tangent);
+				}, {once:true});
+				currentPoint.parentNode.appendChild(newEl);
+				currentPoint.parentNode.removeChild(currentPoint);
+				waypointStack.push(newEl);
+			}.bind(this);
+
 			const placeStation = function placeStation() {
 				this.addEventListener('ar-hit-test-select', hitTestSelect);
 				this.addEventListener('ar-hit-test-select-start', nextFn);
@@ -93,6 +132,11 @@
 				undo.textContent = 'Undo';
 				undo.addEventListener('click', undoFn);
 				buttons.appendChild(undo);
+	
+				const loopALoop = document.createElement('button');
+				loopALoop.textContent = 'Loop-A-Loop';
+				loopALoop.addEventListener('click', loopALoopFn);
+				buttons.appendChild(loopALoop);
 
 				buttons.addEventListener('beforexrselect', e => {
 					e.preventDefault();

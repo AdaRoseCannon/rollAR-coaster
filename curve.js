@@ -137,6 +137,7 @@ AFRAME.registerComponent('curve', {
 
 		this.el.emit('curve-updated');
 
+		// Rotate each point object to line up with the curve
 		for (const [{object3D: object}, pointPosition] of this.points) {
 			const {
 				tangent, position
@@ -352,7 +353,7 @@ AFRAME.registerComponent('clone-along-curve', {
 			this.curve = this.data.curve.components.curve;
 			this.curveEl.addEventListener('curve-shift', this.onPointShift);
 			this.curveEl.addEventListener('curve-updated', this.update);
-		} else if (this.el.components.curve.curve) {
+		} else if (this.el.components.curve) {
 			this.curveEl = this.el;
 			this.curve = this.el.components.curve;
 			this.curveEl.addEventListener('curve-shift', this.onPointShift);

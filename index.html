@@ -1,12 +1,17 @@
 <html>
 
 <head>
-	<script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@5fba101050ece59ff57daa9539592ede0adfbf05/dist/aframe-master.min.js"></script>
-	<script src="https://unpkg.com/aframe-environment-component@1.2.0/dist/aframe-environment-component.min.js"></script>
-	<script src="./curve.js"></script>
-	<script src="./roller-coaster.js"></script>
-	<link rel="stylesheet" href="style.css" />
+	<script>
+		// WebXR requires https: to work so ensure redirected if needed.
+		if (location.hostname !== 'localhost' && window.location.protocol === 'http:') window.location.protocol = 'https:';
+	</script>
 	<title>RollAR Coaster</title>
+	<script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@8137d646647f5ca16e1bac7d03b587994c813496/dist/aframe-master.min.js"></script>
+	<script src="https://unpkg.com/aframe-environment-component@1.2.0/dist/aframe-environment-component.min.js"></script>
+	<script src="curve.js"></script>
+	<script src="roller-coaster.js"></script>
+	<script src="ar-shadow-helper.js"></script>
+	<link rel="stylesheet" href="style.css" />
 	<meta property="og:title" content="RollAR Coaster" />
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:site" content="@adarosecannon" />
@@ -54,7 +59,7 @@
 
 		<a-entity hide-on-enter-ar environment="lighting:none;shadow:true;" position="0 -0.05 0"></a-entity>
 
-		<a-curve draw-curve="tangent:true;length:0.1;spacing:0.1;" hide-on-enter-ar closed="true" tension="0.1" clone-along-curve="spacing: 0.06;scale:0.4 0.4 0.4;" gltf-model="#tracks-glb">
+		<a-curve hide-on-enter-ar closed="true" tension="0.1" clone-along-curve="spacing: 0.06;scale:0.4 0.4 0.4;" gltf-model="#tracks-glb">
 			<a-entity id="station" position="1 0 -2" scale="0.4 0.4 0.4">
 				<a-gltf-model src="#station-glb" rotation="0 -90 0">
 					<a-curve-point id="end-point" position="0 0 -2" gltf-model="#flag-glb">
@@ -71,6 +76,7 @@
 					<a-curve-point position="0 1 0" scale="2 3 2" gltf-model="#flag-glb"></a-curve-point>
 				</a-box>
 				<a-curve-point position="0 0.3 -7" gltf-model="#flag-glb"></a-curve-point>
+				<a-entity position="2.5 0.1 -7" id="loophere"></a-entity>
 				<a-curve-point position="5 0 -6" gltf-model="#flag-glb"></a-curve-point>
 			</a-entity>
 
